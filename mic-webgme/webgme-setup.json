@@ -1,6 +1,10 @@
 {
   "components": {
-    "seeds": {}
+    "seeds": {
+      "StateMachine": {
+        "src": "src/seeds/StateMachine"
+      }
+    }
   },
   "dependencies": {
     "seeds": {}
