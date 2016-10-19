@@ -1,0 +1,19 @@
+{
+  "components": {
+    "seeds": {
+      "StateMachine": {
+        "src": "src/seeds/StateMachine"
+      }
+    },
+    "plugins": {
+      "MiniProject2": {
+        "src": "src/plugins/MiniProject2",
+        "test": "test/plugins/MiniProject2"
+      }
+    }
+  },
+  "dependencies": {
+    "seeds": {},
+    "plugins": {}
+  }
+}
