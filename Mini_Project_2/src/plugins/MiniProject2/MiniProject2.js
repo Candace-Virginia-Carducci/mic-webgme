@@ -128,17 +128,6 @@ define([
 
         self.logger.info(indent, self.core.getAttribute(root, 'name'), 'has', childrenPaths.length, 'children.')
 
-        // for (var path in nodes) {
-        //     var node = nodes[path];
-        //     var name = self.core.getAttribute(node, 'name');
-        //     if( self.isMetaTypeOf(node, self.META['State']) || self.isMetaTypeOf(node, self.META['Transition']) ){
-        //         var metaNode = self.getMetaType(node);
-        //         self.logger.info(name,'isMeta: true');
-        //         self.logger.info(name, 'is of meta-type', self.core.getAttribute(metaNode, 'name'));
-        //     } else{
-        //         self.logger.info(name, 'isMeta: false');
-        //     }
-        // }
 
         for (i = 0; i < childrenPaths.length; i += 1) {
             childNode = nodes[childrenPaths[i]];
@@ -155,6 +144,19 @@ define([
                     self.logger.info(name, 'isMeta: false');
                 }
         }
+
+
+        for (i = 0; i < childrenPaths.length; i += 1){
+            childNode = nodes[childrenPaths[i]];
+            var metaNode = self.getMetaType(childNode);
+            if (i === 0 || !(self.isMetaTypeOf(childNode, self.META['State']) || self.isMetaTypeOf(childNode, self.META['Transition']))){
+                self.logger.info('name:',name, 'path:',self.core.getPath(childNode), 'nmbrChildren:', childrenPaths.length,'base : null');
+            }else{
+                self.logger.info('name:',name, 'path:' ,self.core.getPath(childNode),  'nmbrChildren:', childrenPaths.length,'base:',self.core.getAttribute(metaNode, 'name'));
+
+            }
+        }
+
 
     };
 
