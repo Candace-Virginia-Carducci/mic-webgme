@@ -14,7 +14,10 @@ define([
 ], function (
     PluginConfig,
     pluginMetadata,
-    PluginBase) {
+    PluginBase,
+    indexHtmlContent,
+    ejs,
+    programJsTemplate) {
     'use strict';
 
     pluginMetadata = JSON.parse(pluginMetadata);
@@ -72,7 +75,6 @@ define([
         //self.core.setAttribute(nodeObject, 'name', 'My new obj');
         //self.core.setRegistry(nodeObject, 'position', {x: 70, y: 70});
 
-
         self.metaNodeInfo = [];
         var artifact;
         self.loadNodeMap(self.rootNode)
@@ -80,8 +82,8 @@ define([
                 self.printChildrenRec(self.rootNode, nodes);
                 // Here data has been added metaNodeInfo.
                 var metaNodeInfoJson = JSON.stringify(self.metaNodeInfo, null, 4);
-                artifact = self.blobClient.createArtifact('project-data');
-                return artifact.addFile('metaNodeInfo.json', metaNodeInfoJson);
+                artifact = self.blobClient.createArtifact('data');
+                return artifact.addFile('tree.json', metaNodeInfoJson);
             })
             .then(function (fileHash) {
                 self.result.addArtifact(fileHash);
@@ -114,36 +116,6 @@ define([
             });
     };
 
-
-    MiniProject2.prototype.printRandomly = function (nodes) {
-        var self = this,
-            path,
-            name,
-            attr,
-            metaNode,
-            node;
-
-        for (path in nodes) {
-            node = nodes[path];
-            name = self.core.getAttribute(node, 'name');
-
-            if (self.getMetaType(childNode) === childNode) {
-                self.logger.info('childNode is a meta-node');
-                self.logger.info('isMeta: true');
-            } else{
-                self.logger.info('isMeta: false');
-            }
-            if (self.isMetaTypeOf(node, self.META.Transition)) {
-                attr = self.core.getAttribute(node, 'guard');
-                self.logger.info(name, 'has event', attr);
-            } else {
-                metaNode = self.getMetaType(node);
-                self.logger.info(name, 'is of meta-type', self.core.getAttribute(metaNode, 'name'));
-            }
-
-        }
-    };
-
     MiniProject2.prototype.printChildrenRec = function (root, nodes, indent) {
         var self = this,
             childrenPaths,
@@ -153,17 +125,136 @@ define([
         indent = indent || '';
 
         childrenPaths = self.core.getChildrenPaths(root);
-        self.logger.info(indent, self.core.getAttribute(root, 'name'), 'has', childrenPaths.length, 'children.');
+
+        self.logger.info(indent, self.core.getAttribute(root, 'name'), 'has', childrenPaths.length, 'children.')
+
+        // for (var path in nodes) {
+        //     var node = nodes[path];
+        //     var name = self.core.getAttribute(node, 'name');
+        //     if( self.isMetaTypeOf(node, self.META['State']) || self.isMetaTypeOf(node, self.META['Transition']) ){
+        //         var metaNode = self.getMetaType(node);
+        //         self.logger.info(name,'isMeta: true');
+        //         self.logger.info(name, 'is of meta-type', self.core.getAttribute(metaNode, 'name'));
+        //     } else{
+        //         self.logger.info(name, 'isMeta: false');
+        //     }
+        // }
 
         for (i = 0; i < childrenPaths.length; i += 1) {
             childNode = nodes[childrenPaths[i]];
-            self.printChildrenRec(childNode, nodes, indent + '  ');
-           // self.metaNodeInfo.push({name: childNode , path: childrenPaths[i], numberOfChildren: childrenPaths[i].length});
-
+            if (i === 0 ){
+                self.logger.info('ROOT isMeta: true');
+            }
+            self.printChildrenRec(childNode, nodes);
+            var name = self.core.getAttribute(childNode, 'name');
+                if( self.isMetaTypeOf(childNode, self.META['State']) || self.isMetaTypeOf(childNode, self.META['Transition']) ){
+                    var metaNode = self.getMetaType(childNode);
+                    self.logger.info(name,'isMeta: true');
+                    self.logger.info(name, 'is of meta-type', self.core.getAttribute(metaNode, 'name'));
+                } else{
+                    self.logger.info(name, 'isMeta: false');
+                }
         }
 
     };
 
+
+    MiniProject2.prototype.print = function () {
+        var self = this,
+            dataModel = {
+                stateMachine: {
+                    name: '',
+                    initialState: null,
+                    finalStates: [],
+                    states: []
+                }
+            };
+
+        dataModel.stateMachine.name = self.core.getAttribute(self.activeNode, 'name');
+        var i,
+            childNode,
+            childName,
+            childrenPaths;
+
+                for (i = 0; i < nodes.length; i += 1) {
+                    self.pathToNode[self.core.getPath(nodes[i])] = nodes[i];
+                }
+
+                childrenPaths = self.core.getChildrenPaths(self.activeNode);
+
+                for (i = 0; i < childrenPaths.length; i += 1) {
+                    childNode = self.pathToNode[childrenPaths[i]];
+                    // Log the name of the child (it's an attribute so we use getAttribute).
+                    childName = self.core.getAttribute(childNode, 'name');
+                    self.logger.info('At childNode', childName);
+
+                    if (self.isMetaTypeOf(childNode, self.META['State']) === true) {
+                        self.logger.info(childName, 'isMeta: true');
+                        self.logger.info(childName, 'MetaType: State');
+                        if (self.isMetaTypeOf(childNode, self.META['Initial']) === true) {
+                            dataModel.stateMachine.initialState = self.core.getPath(childNode);
+                            self.logger.info(childName, 'MetaType: Initial');
+                        } else if (self.isMetaTypeOf(childNode, self.META['End']) === true) {
+                            dataModel.stateMachine.finalStates.push(self.core.getPath(childNode));
+                            self.logger.info(childName, 'MetaType: End');
+                        }
+                        dataModel.stateMachine.states.push(self.getStateData(childNode));
+                    } else if (self.isMetaTypeOf(childNode, self.META['Transition']) === true) {
+                        self.logger.info(childName, 'MetaType: Transition');
+                        self.logger.info(childName, 'isMeta: true');
+                        // No need to handle - getStateData will get the transitions.
+                    } else {
+                        self.logger.debug('Child was not of type State or Transition, skipping', childName);
+                        self.logger.info(childName, 'isMeta: false');
+                    }
+                    self.metaNodeInfo.push({name: childNode , path: childrenPaths[i], numberOfChildren: childrenPaths[i].length});
+                }
+
+                return dataModel;
+    };
+
+
+    MiniProject2.prototype.getStateData = function (stateNode) {
+        var self = this,
+            stateData = {
+                id: '',
+                name: '',
+                transitions: []
+            },
+            i,
+            transNode,
+            transPaths;
+
+        stateData.name = self.core.getAttribute(stateNode, 'name');
+        stateData.id = self.core.getPath(stateNode);
+
+        transPaths = self.core.getCollectionPaths(stateNode, 'src');
+
+        for (i = 0; i < transPaths.length; i += 1) {
+            transNode = self.pathToNode[transPaths[i]];
+            self.logger.info(stateData.name, 'has outgoing transition', transPaths[i]);
+            stateData.transitions.push(self.getTransitionData(transNode));
+        }
+
+        return stateData;
+    };
+
+    MiniProject2.prototype.getTransitionData = function (transitionNode) {
+        var self = this,
+            transitionData = {
+                targetId: '',
+                targetName: '',
+                event: ''
+            },
+            targetNode;
+
+        transitionData.event = self.core.getAttribute(transitionNode, 'event');
+        transitionData.targetId = self.core.getPointerPath(transitionNode, 'dst');
+        targetNode = self.pathToNode[transitionData.targetId];
+        transitionData.targetName = self.core.getAttribute(targetNode, 'name');
+
+        return transitionData;
+    };
 
 
     return MiniProject2;
