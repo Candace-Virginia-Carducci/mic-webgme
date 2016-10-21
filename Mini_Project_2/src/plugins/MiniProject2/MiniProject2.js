@@ -46,6 +46,14 @@ define([
     MiniProject2.prototype = Object.create(PluginBase.prototype);
     MiniProject2.prototype.constructor = MiniProject2;
 
+
+    var jsonfile,
+        treeFile,
+        treeobj,
+        metaFile,
+        metaObj,
+        start=0;
+
     /**
      * Main function for the plugin to execute. This will perform the execution.
      * Notes:
@@ -62,6 +70,7 @@ define([
             nodeObject;
 
 
+
         // Using the logger.
         // self.logger.debug('This is a debug message.');
         // self.logger.info('This is an info message.');
@@ -75,15 +84,23 @@ define([
         //self.core.setAttribute(nodeObject, 'name', 'My new obj');
         //self.core.setRegistry(nodeObject, 'position', {x: 70, y: 70});
 
+        jsonfile = require('jsonfile');
+        treeobj = [];
+        treeFile = '/tree.txt';
+        metaFile = '/meta.txt';
+        metaObj = [];
+
+
         self.metaNodeInfo = [];
         var artifact;
         self.loadNodeMap(self.rootNode)
             .then(function (nodes) {
-                self.printChildrenRec(self.rootNode, nodes);
+                self.printChildren(self.rootNode, nodes);
                 // Here data has been added metaNodeInfo.
                 var metaNodeInfoJson = JSON.stringify(self.metaNodeInfo, null, 4);
-                artifact = self.blobClient.createArtifact('data');
-                return artifact.addFile('tree.json', metaNodeInfoJson);
+                artifact = self.blobClient.createArtifact('project');
+                return artifact.addFile('tree.json', metaNodeInfoJson),artifact.addFile('meta.json', metaNodeInfoJson) ;
+
             })
             .then(function (fileHash) {
                 self.result.addArtifact(fileHash);
@@ -116,46 +133,73 @@ define([
             });
     };
 
-    MiniProject2.prototype.printChildrenRec = function (root, nodes, indent) {
+    MiniProject2.prototype.printChildren = function (root, nodes, indent) {
         var self = this,
             childrenPaths,
             childNode,
             i;
 
         indent = indent || '';
-
         childrenPaths = self.core.getChildrenPaths(root);
-
+        var parent;
         self.logger.info(indent, self.core.getAttribute(root, 'name'), 'has', childrenPaths.length, 'children.')
+        if (start === 0){
+            parent = self.core.getAttribute(root, 'name');
+            self.logger.info('ROOT isMeta: true');
+            treeobj.push('name: ROOT');
+            treeobj.push('ROOT isMeta: true');
+            start = 1;
+        }
+
 
 
         for (i = 0; i < childrenPaths.length; i += 1) {
             childNode = nodes[childrenPaths[i]];
-            if (i === 0 ){
-                self.logger.info('ROOT isMeta: true');
+            treeobj.push('Children:');
+            for (var c= 0; c < childrenPaths.length; c += 1) {
+                treeobj.push( c, ')',self.core.getAttribute(nodes[childrenPaths[c]], 'name'));
             }
-            self.printChildrenRec(childNode, nodes);
+            parent = childNode;
+            self.printChildren(childNode, nodes);
             var name = self.core.getAttribute(childNode, 'name');
+            treeobj.push('name:', name);
                 if( self.isMetaTypeOf(childNode, self.META['State']) || self.isMetaTypeOf(childNode, self.META['Transition']) ){
                     var metaNode = self.getMetaType(childNode);
                     self.logger.info(name,'isMeta: true');
+                    treeobj.push(name,'isMeta: true');
                     self.logger.info(name, 'is of meta-type', self.core.getAttribute(metaNode, 'name'));
+                    treeobj.push(name, 'is of meta-type', self.core.getAttribute(metaNode, 'name'));
                 } else{
                     self.logger.info(name, 'isMeta: false');
+                    treeobj.push(name,'isMeta: false');
                 }
+
         }
 
 
+        jsonfile.writeFile('tree.txt',treeobj, function (err) {
+            if (err) return console.log(err);
+            //console.log('Hello World > helloworld.txt');
+        });
+
+        metaObj = [];
         for (i = 0; i < childrenPaths.length; i += 1){
             childNode = nodes[childrenPaths[i]];
             var metaNode = self.getMetaType(childNode);
+
             if (i === 0 || !(self.isMetaTypeOf(childNode, self.META['State']) || self.isMetaTypeOf(childNode, self.META['Transition']))){
                 self.logger.info('name:',name, 'path:',self.core.getPath(childNode), 'nmbrChildren:', childrenPaths.length,'base : null');
+                metaObj.push('name:',name, 'path:',self.core.getPath(childNode), 'nmbrChildren:', childrenPaths.length,'base : null');
             }else{
                 self.logger.info('name:',name, 'path:' ,self.core.getPath(childNode),  'nmbrChildren:', childrenPaths.length,'base:',self.core.getAttribute(metaNode, 'name'));
-
+                metaObj.push( 'name:',name, 'path:' ,self.core.getPath(childNode),  'nmbrChildren:', childrenPaths.length,'base:',self.core.getAttribute(metaNode, 'name'));
             }
         }
+        jsonfile.writeFile('meta.txt', metaObj, function (err) {
+            if (err) return console.log(err);
+            //console.log('Hello World > helloworld.txt');
+        });
+
 
 
     };
