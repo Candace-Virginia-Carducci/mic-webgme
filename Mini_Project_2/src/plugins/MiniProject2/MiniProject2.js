@@ -52,7 +52,8 @@ define([
         treeobj,
         metaFile,
         metaObj,
-        start=0;
+        start=0,
+        os;
 
     /**
      * Main function for the plugin to execute. This will perform the execution.
@@ -85,21 +86,26 @@ define([
         //self.core.setRegistry(nodeObject, 'position', {x: 70, y: 70});
 
         jsonfile = require('jsonfile');
-        treeobj = [];
-        treeFile = '/tree.txt';
-        metaFile = '/meta.txt';
-        metaObj = [];
+        treeobj= {
+            'tree' : []
+        };
+        treeFile = 'tree.json';
+        metaFile = 'meta.json';
+        metaObj = {
+            "metaNodes" : []
+        };
 
 
         self.metaNodeInfo = [];
         var artifact;
+        os = require("os");
         self.loadNodeMap(self.rootNode)
             .then(function (nodes) {
                 self.printChildren(self.rootNode, nodes);
                 // Here data has been added metaNodeInfo.
                 var metaNodeInfoJson = JSON.stringify(self.metaNodeInfo, null, 4);
                 artifact = self.blobClient.createArtifact('project');
-                return artifact.addFile('tree.json', metaNodeInfoJson),artifact.addFile('meta.json', metaNodeInfoJson) ;
+                return artifact.addFile('tree.txt', metaNodeInfoJson),artifact.addFile('meta.txt', metaNodeInfoJson) ;
 
             })
             .then(function (fileHash) {
@@ -128,7 +134,6 @@ define([
                 for (i = 0; i < nodeArr.length; i += 1) {
                     nodes[self.core.getPath(nodeArr[i])] = nodeArr[i];
                 }
-
                 return nodes;
             });
     };
@@ -145,9 +150,9 @@ define([
         self.logger.info(indent, self.core.getAttribute(root, 'name'), 'has', childrenPaths.length, 'children.')
         if (start === 0){
             parent = self.core.getAttribute(root, 'name');
-            self.logger.info('ROOT isMeta: true');
-            treeobj.push('name: ROOT');
-            treeobj.push('ROOT isMeta: true');
+            self.logger.info('ROOT isMeta : true');
+            treeobj.tree.push( {'name' : 'ROOT'});
+            treeobj.tree.push({'ROOT isMeta': 'true'});
             start = 1;
         }
 
@@ -155,51 +160,70 @@ define([
 
         for (i = 0; i < childrenPaths.length; i += 1) {
             childNode = nodes[childrenPaths[i]];
-            treeobj.push('Children:');
+            treeobj.tree.push('Children:');
             for (var c= 0; c < childrenPaths.length; c += 1) {
-                treeobj.push( c, ')',self.core.getAttribute(nodes[childrenPaths[c]], 'name'));
+                var num = c.toString() + ')'
+                treeobj.tree.push( { num :  self.core.getAttribute(nodes[childrenPaths[c]] , 'name')} );
             }
             parent = childNode;
             self.printChildren(childNode, nodes);
             var name = self.core.getAttribute(childNode, 'name');
-            treeobj.push('name:', name);
+            treeobj.tree.push({'name': name});
                 if( self.isMetaTypeOf(childNode, self.META['State']) || self.isMetaTypeOf(childNode, self.META['Transition']) ){
                     var metaNode = self.getMetaType(childNode);
                     self.logger.info(name,'isMeta: true');
-                    treeobj.push(name,'isMeta: true');
+                    treeobj.tree.push({name :'isMeta: true'});
                     self.logger.info(name, 'is of meta-type', self.core.getAttribute(metaNode, 'name'));
-                    treeobj.push(name, 'is of meta-type', self.core.getAttribute(metaNode, 'name'));
+                    var n = name.toString() + 'is of meta-type'
+                    treeobj.tree.push({n : self.core.getAttribute(metaNode, 'name')});
                 } else{
                     self.logger.info(name, 'isMeta: false');
-                    treeobj.push(name,'isMeta: false');
+                    treeobj.tree.push({name:'isMeta: false'});
                 }
 
         }
 
+        // jsonfile.writeFile(treeFile,treeobj,{spaces: 2},function (err) {
+        //     if (err) return console.log(err);
+        //     //console.log('Hello World > helloworld.txt');
+        // });
 
-        jsonfile.writeFile('tree.txt',treeobj, function (err) {
+        jsonfile.writeFile('tree.txt',treeobj,{spaces: 1},function (err) {
             if (err) return console.log(err);
             //console.log('Hello World > helloworld.txt');
         });
 
-        metaObj = [];
+        metaObj = {
+            "metaNodes" : []
+        };
+        var tempMetaObj = {};
         for (i = 0; i < childrenPaths.length; i += 1){
             childNode = nodes[childrenPaths[i]];
             var metaNode = self.getMetaType(childNode);
 
             if (i === 0 || !(self.isMetaTypeOf(childNode, self.META['State']) || self.isMetaTypeOf(childNode, self.META['Transition']))){
                 self.logger.info('name:',name, 'path:',self.core.getPath(childNode), 'nmbrChildren:', childrenPaths.length,'base : null');
-                metaObj.push('name:',name, 'path:',self.core.getPath(childNode), 'nmbrChildren:', childrenPaths.length,'base : null');
+                tempMetaObj = {'name': name, 'path': self.core.getPath(childNode), 'nmbrChildren': childrenPaths.length,'base' : null};
+                //tempMetaObj = JSON.stringify(tempMetaObj);
+                metaObj.metaNodes.push(tempMetaObj);
             }else{
                 self.logger.info('name:',name, 'path:' ,self.core.getPath(childNode),  'nmbrChildren:', childrenPaths.length,'base:',self.core.getAttribute(metaNode, 'name'));
-                metaObj.push( 'name:',name, 'path:' ,self.core.getPath(childNode),  'nmbrChildren:', childrenPaths.length,'base:',self.core.getAttribute(metaNode, 'name'));
+                tempMetaObj = {'name': name, 'path': self.core.getPath(childNode), 'nmbrChildren': childrenPaths.length,'base' :self.core.getAttribute(metaNode, 'name')};
+                //tempMetaObj = JSON.stringify(tempMetaObj);
+                metaObj.metaNodes.push(tempMetaObj);
             }
         }
-        jsonfile.writeFile('meta.txt', metaObj, function (err) {
+
+        jsonfile.writeFile('meta.txt', metaObj,{spaces: 1},function (err) {
             if (err) return console.log(err);
             //console.log('Hello World > helloworld.txt');
         });
 
+
+        // jsonfile.writeFile(metaFile, metaObj, function (err) {
+        //     if (err) return console.log(err);
+        //     //console.log('Hello World > helloworld.txt');
+        // });
 
 
     };

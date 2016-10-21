@@ -1,0 +1,77 @@
+{
+ "metaNodes": [
+  {
+   "name": "StateMachine",
+   "path": "/1",
+   "nmbrChildren": 3,
+   "base": null
+  },
+  {
+   "name": "StateMachine",
+   "path": "/9",
+   "nmbrChildren": 3,
+   "base": null
+  },
+  {
+   "name": "StateMachine",
+   "path": "/R",
+   "nmbrChildren": 3,
+   "base": null
+  }
+ ]
+}
+": "0",
+   "path": "/R/g",
+   "nmbrChildren": 12,
+   "base": "Transition"
+  },
+  {
+   "name": "0",
+   "path": "/R/i",
+   "nmbrChildren": 12,
+   "base": "Transition"
+  },
+  {
+   "name": "0",
+   "path": "/R/o",
+   "nmbrChildren": 12,
+   "base": null
+  },
+  {
+   "name": "0",
+   "path": "/R/Z",
+   "nmbrChildren": 12,
+   "base": "State"
+  },
+  {
+   "name": "0",
+   "path": "/R/c",
+   "nmbrChildren": 12,
+   "base": "State"
+  },
+  {
+   "name": "0",
+   "path": "/R/K",
+   "nmbrChildren": 12,
+   "base": null
+  },
+  {
+   "name": "0",
+   "path": "/R/D",
+   "nmbrChildren": 12,
+   "base": "Transition"
+  },
+  {
+   "name": "0",
+   "path": "/R/M",
+   "nmbrChildren": 12,
+   "base": "Transition"
+  },
+  {
+   "name": "0",
+   "path": "/R/f",
+   "nmbrChildren": 12,
+   "base": "Transition"
+  }
+ ]
+}
