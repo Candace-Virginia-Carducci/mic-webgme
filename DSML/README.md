@@ -1,2 +1,0 @@
-# DSML
-webgme project
