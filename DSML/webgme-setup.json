@@ -1,0 +1,20 @@
+{
+  "components": {
+    "plugins": {
+      "FSMExample": {
+        "src": "src/plugins/FSMExample",
+        "test": "test/plugins/FSMExample"
+      }
+    },
+    "seeds": {
+      "FiniteStateMachine": {
+        "src": "src/seeds/FiniteStateMachine"
+      }
+    }
+  },
+  "dependencies": {
+    "plugins": {},
+    "seeds": {},
+    "decorators": {}
+  }
+}

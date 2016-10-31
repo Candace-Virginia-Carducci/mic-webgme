@@ -11,16 +11,16 @@ define([
     'plugin/PluginConfig',
     'text!./metadata.json',
     'plugin/PluginBase'
-], function (
-    PluginConfig,
-    pluginMetadata,
-    PluginBase,
-    indexHtmlContent,
-    ejs,
-    programJsTemplate) {
+], function (PluginConfig,
+             pluginMetadata,
+             PluginBase,
+             indexHtmlContent,
+             ejs,
+             programJsTemplate) {
     'use strict';
 
     pluginMetadata = JSON.parse(pluginMetadata);
+
 
     /**
      * Initializes a new instance of myExample.
@@ -47,14 +47,6 @@ define([
     MiniProject2.prototype.constructor = MiniProject2;
 
 
-    var jsonfile,
-        treeFile,
-        treeobj,
-        metaFile,
-        metaObj,
-        start=0,
-        os;
-
     /**
      * Main function for the plugin to execute. This will perform the execution.
      * Notes:
@@ -71,42 +63,22 @@ define([
             nodeObject;
 
 
-
-        // Using the logger.
-        // self.logger.debug('This is a debug message.');
-        // self.logger.info('This is an info message.');
-        // self.logger.warn('This is a warning message.');
-        // self.logger.error('This is an error message.');
-
         // Using the coreAPI to make changes.
 
         nodeObject = self.activeNode;
 
-        //self.core.setAttribute(nodeObject, 'name', 'My new obj');
-        //self.core.setRegistry(nodeObject, 'position', {x: 70, y: 70});
-
-        jsonfile = require('jsonfile');
-        treeobj= {
-            'tree' : []
-        };
-        treeFile = 'tree.json';
-        metaFile = 'meta.json';
-        metaObj = {
-            "metaNodes" : []
-        };
-
-
-        self.metaNodeInfo = [];
-        var artifact;
-        os = require("os");
+        var artifact = self.blobClient.createArtifact('project-data');
+        self.metaNodeInfo = {
+            "metaNodes": []
+        };//[];
+        self.treeNodeInfo = [];
         self.loadNodeMap(self.rootNode)
+        // >> Meta Nodes
             .then(function (nodes) {
-                self.printChildren(self.rootNode, nodes);
-                // Here data has been added metaNodeInfo.
-                var metaNodeInfoJson = JSON.stringify(self.metaNodeInfo, null, 4);
-                artifact = self.blobClient.createArtifact('project');
-                return artifact.addFile('tree.txt', metaNodeInfoJson),artifact.addFile('meta.txt', metaNodeInfoJson) ;
-
+                //print heirarchy here
+                self.printMetaNodes(nodes);
+                var metaNodeInfoJson = JSON.stringify(self.metaNodeInfo, null, 0);
+                return artifact.addFile('meta.json', metaNodeInfoJson);
             })
             .then(function (fileHash) {
                 self.result.addArtifact(fileHash);
@@ -114,6 +86,22 @@ define([
             })
             .then(function (artifactHash) {
                 self.result.addArtifact(artifactHash);
+            })   //tree  >>
+            .then(function (nodes) {
+                //print hierarchy here
+                self.printTreeNodes(self.rootNode, nodes);
+                var treeNodeInfoJson = JSON.stringify(self.treeNodeInfo, null, 0);
+                //artifacts
+                return artifact.addFile('tree.json', treeNodeInfoJson);
+            })
+            .then(function (fileHash) {
+                self.result.addArtifact(fileHash);
+                return artifact.save()
+            })
+            .then(function (artifactHash) {
+                self.result.addArtifact(artifactHash);
+            })
+            .then(function () {
                 self.result.setSuccess(true);
                 callback(null, self.result);
             })
@@ -138,194 +126,68 @@ define([
             });
     };
 
-    MiniProject2.prototype.printChildren = function (root, nodes, indent) {
+
+    MiniProject2.prototype.printMetaNodes = function (nodes) {
         var self = this,
-            childrenPaths,
-            childNode,
-            i;
+            path,
+            name,
+            node,
+            meta,
+            base,
+            numCh;
 
-        indent = indent || '';
-        childrenPaths = self.core.getChildrenPaths(root);
-        var parent;
-        self.logger.info(indent, self.core.getAttribute(root, 'name'), 'has', childrenPaths.length, 'children.')
-        if (start === 0){
-            parent = self.core.getAttribute(root, 'name');
-            self.logger.info('ROOT isMeta : true');
-            treeobj.tree.push( {'name' : 'ROOT'});
-            treeobj.tree.push({'ROOT isMeta': 'true'});
-            start = 1;
-        }
-
-
-
-        for (i = 0; i < childrenPaths.length; i += 1) {
-            childNode = nodes[childrenPaths[i]];
-            treeobj.tree.push('Children:');
-            for (var c= 0; c < childrenPaths.length; c += 1) {
-                var num = c.toString() + ')'
-                treeobj.tree.push( { num :  self.core.getAttribute(nodes[childrenPaths[c]] , 'name')} );
+        for (path in nodes) {
+            meta = false;
+            //get node by path
+            node = nodes[path];
+            //get node by name
+            name = self.core.getAttribute(node, 'name')
+            numCh = self.core.getChildrenPaths(node).length;
+            var meta;
+            if (path === '') {
+                meta = null;
+                meta = true;
             }
-            parent = childNode;
-            self.printChildren(childNode, nodes);
-            var name = self.core.getAttribute(childNode, 'name');
-            treeobj.tree.push({'name': name});
-                if( self.isMetaTypeOf(childNode, self.META['State']) || self.isMetaTypeOf(childNode, self.META['Transition']) ){
-                    var metaNode = self.getMetaType(childNode);
-                    self.logger.info(name,'isMeta: true');
-                    treeobj.tree.push({name :'isMeta: true'});
-                    self.logger.info(name, 'is of meta-type', self.core.getAttribute(metaNode, 'name'));
-                    var n = name.toString() + 'is of meta-type'
-                    treeobj.tree.push({n : self.core.getAttribute(metaNode, 'name')});
-                } else{
-                    self.logger.info(name, 'isMeta: false');
-                    treeobj.tree.push({name:'isMeta: false'});
-                }
+            if (self.isMetaTypeOf(node, self.META['FCO']) && name === 'FCO') {
+                meta = true;
+                base = 'FCO';
+            }
+            if (self.isMetaTypeOf(node, self.META['Base']) && name === 'Base') {
+                meta = true;
+                base = 'Base';
+            }
+            if (self.isMetaTypeOf(node, self.META['StateBase']) && name === 'StateBase') {
+                meta = true;
+                base = 'Base';
+            }
+            if (self.isMetaTypeOf(node, self.META['State']) && name === 'State') {
+                meta = true;
+                base = 'StateBase';
+            }
+            if (self.isMetaTypeOf(node, self.META['Initial']) && name === 'Initial') {
+                meta = true;
+                base = 'StateBase';
+            }
+            if (self.isMetaTypeOf(node, self.META['End']) && name === 'End') {
+                meta = true;
+                base = 'StateBase';
+            }
+            if (self.isMetaTypeOf(node, self.META['Transition']) && name === 'Transiion') {
+                meta = true;
+                base = 'Transition';
+            }
 
-        }
-
-        // jsonfile.writeFile(treeFile,treeobj,{spaces: 2},function (err) {
-        //     if (err) return console.log(err);
-        //     //console.log('Hello World > helloworld.txt');
-        // });
-
-        jsonfile.writeFile('tree.txt',treeobj,{spaces: 1},function (err) {
-            if (err) return console.log(err);
-            //console.log('Hello World > helloworld.txt');
-        });
-
-        metaObj = {
-            "metaNodes" : []
-        };
-        var tempMetaObj = {};
-        for (i = 0; i < childrenPaths.length; i += 1){
-            childNode = nodes[childrenPaths[i]];
-            var metaNode = self.getMetaType(childNode);
-
-            if (i === 0 || !(self.isMetaTypeOf(childNode, self.META['State']) || self.isMetaTypeOf(childNode, self.META['Transition']))){
-                self.logger.info('name:',name, 'path:',self.core.getPath(childNode), 'nmbrChildren:', childrenPaths.length,'base : null');
-                tempMetaObj = {'name': name, 'path': self.core.getPath(childNode), 'nmbrChildren': childrenPaths.length,'base' : null};
-                //tempMetaObj = JSON.stringify(tempMetaObj);
-                metaObj.metaNodes.push(tempMetaObj);
-            }else{
-                self.logger.info('name:',name, 'path:' ,self.core.getPath(childNode),  'nmbrChildren:', childrenPaths.length,'base:',self.core.getAttribute(metaNode, 'name'));
-                tempMetaObj = {'name': name, 'path': self.core.getPath(childNode), 'nmbrChildren': childrenPaths.length,'base' :self.core.getAttribute(metaNode, 'name')};
-                //tempMetaObj = JSON.stringify(tempMetaObj);
-                metaObj.metaNodes.push(tempMetaObj);
+            if (meta) {
+                //self.logger.info('Name:', name, ' has path:', path, 'isMetaNode:', meta,'base:', base ,'has', numCh, 'children');
+                self.metaNodeInfo.metaNodes.push({'Name:': name, ' has path': path, 'base': base, 'children': numCh});
             }
         }
+    };
 
-        jsonfile.writeFile('meta.txt', metaObj,{spaces: 1},function (err) {
-            if (err) return console.log(err);
-            //console.log('Hello World > helloworld.txt');
-        });
-
-
-        // jsonfile.writeFile(metaFile, metaObj, function (err) {
-        //     if (err) return console.log(err);
-        //     //console.log('Hello World > helloworld.txt');
-        // });
+    MiniProject2.prototype.printTreeNodes = function (root, nodes) {
 
 
     };
-
-
-    MiniProject2.prototype.print = function () {
-        var self = this,
-            dataModel = {
-                stateMachine: {
-                    name: '',
-                    initialState: null,
-                    finalStates: [],
-                    states: []
-                }
-            };
-
-        dataModel.stateMachine.name = self.core.getAttribute(self.activeNode, 'name');
-        var i,
-            childNode,
-            childName,
-            childrenPaths;
-
-                for (i = 0; i < nodes.length; i += 1) {
-                    self.pathToNode[self.core.getPath(nodes[i])] = nodes[i];
-                }
-
-                childrenPaths = self.core.getChildrenPaths(self.activeNode);
-
-                for (i = 0; i < childrenPaths.length; i += 1) {
-                    childNode = self.pathToNode[childrenPaths[i]];
-                    // Log the name of the child (it's an attribute so we use getAttribute).
-                    childName = self.core.getAttribute(childNode, 'name');
-                    self.logger.info('At childNode', childName);
-
-                    if (self.isMetaTypeOf(childNode, self.META['State']) === true) {
-                        self.logger.info(childName, 'isMeta: true');
-                        self.logger.info(childName, 'MetaType: State');
-                        if (self.isMetaTypeOf(childNode, self.META['Initial']) === true) {
-                            dataModel.stateMachine.initialState = self.core.getPath(childNode);
-                            self.logger.info(childName, 'MetaType: Initial');
-                        } else if (self.isMetaTypeOf(childNode, self.META['End']) === true) {
-                            dataModel.stateMachine.finalStates.push(self.core.getPath(childNode));
-                            self.logger.info(childName, 'MetaType: End');
-                        }
-                        dataModel.stateMachine.states.push(self.getStateData(childNode));
-                    } else if (self.isMetaTypeOf(childNode, self.META['Transition']) === true) {
-                        self.logger.info(childName, 'MetaType: Transition');
-                        self.logger.info(childName, 'isMeta: true');
-                        // No need to handle - getStateData will get the transitions.
-                    } else {
-                        self.logger.debug('Child was not of type State or Transition, skipping', childName);
-                        self.logger.info(childName, 'isMeta: false');
-                    }
-                    self.metaNodeInfo.push({name: childNode , path: childrenPaths[i], numberOfChildren: childrenPaths[i].length});
-                }
-
-                return dataModel;
-    };
-
-
-    MiniProject2.prototype.getStateData = function (stateNode) {
-        var self = this,
-            stateData = {
-                id: '',
-                name: '',
-                transitions: []
-            },
-            i,
-            transNode,
-            transPaths;
-
-        stateData.name = self.core.getAttribute(stateNode, 'name');
-        stateData.id = self.core.getPath(stateNode);
-
-        transPaths = self.core.getCollectionPaths(stateNode, 'src');
-
-        for (i = 0; i < transPaths.length; i += 1) {
-            transNode = self.pathToNode[transPaths[i]];
-            self.logger.info(stateData.name, 'has outgoing transition', transPaths[i]);
-            stateData.transitions.push(self.getTransitionData(transNode));
-        }
-
-        return stateData;
-    };
-
-    MiniProject2.prototype.getTransitionData = function (transitionNode) {
-        var self = this,
-            transitionData = {
-                targetId: '',
-                targetName: '',
-                event: ''
-            },
-            targetNode;
-
-        transitionData.event = self.core.getAttribute(transitionNode, 'event');
-        transitionData.targetId = self.core.getPointerPath(transitionNode, 'dst');
-        targetNode = self.pathToNode[transitionData.targetId];
-        transitionData.targetName = self.core.getAttribute(targetNode, 'name');
-
-        return transitionData;
-    };
-
 
     return MiniProject2;
 });
