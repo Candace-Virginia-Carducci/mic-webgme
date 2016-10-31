@@ -70,7 +70,7 @@ define([
         var artifact = self.blobClient.createArtifact('project-data');
         self.metaNodeInfo = {
             "metaNodes": []
-        };//[];
+        };
         self.treeNodeInfo = [];
         self.loadNodeMap(self.rootNode)
         // >> Meta Nodes
@@ -87,6 +87,7 @@ define([
             .then(function (artifactHash) {
                 self.result.addArtifact(artifactHash);
             })   //tree  >>
+        self.loadNodeMap(self.rootNode)
             .then(function (nodes) {
                 //print hierarchy here
                 self.printTreeNodes(self.rootNode, nodes);
@@ -185,9 +186,70 @@ define([
     };
 
     MiniProject2.prototype.printTreeNodes = function (root, nodes) {
+        var self = this,
+            childrenPaths,
+            childNode;
 
+        var name,
+            isMeta = false,
+            metaType;
+
+        childrenPaths = self.core.getChildrenPaths(root);
+        name = self.core.getAttribute(root, 'name');
+        if (self.core.getPath(root) === '') {
+            metaType = null;
+            isMeta = true;
+        }
+        if (self.isMetaTypeOf(root, self.META['FCO'])) {
+            metaType = 'FCO';
+            if (name === 'FCO')
+                isMeta = true;
+        }
+        if (self.isMetaTypeOf(root, self.META['Base'])) {
+            metaType = 'Base';
+            if (name === 'Base')
+                isMeta = true;
+        }
+        if (self.isMetaTypeOf(root, self.META['StateBase'])) {
+            metaType = 'StateBase';
+            if (name === 'StateBase')
+                isMeta = true;
+        }
+        if (self.isMetaTypeOf(root, self.META['State'])) {
+            metaType = 'State';
+            if (name === 'State')
+                isMeta = true;
+        }
+        if (self.isMetaTypeOf(root, self.META['Initial'])) {
+            metaType = 'StateBase';
+            if (name === 'Initial')
+                isMeta = true;
+        }
+        if (self.isMetaTypeOf(root, self.META['End'])) {
+            metaType = 'StateBase';
+            if (name === 'End')
+                isMeta = true;
+        }
+        if (self.isMetaTypeOf(root, self.META['Transition'])) {
+            metaType = 'StateBase';
+            if (name === 'Transition')
+                isMeta = true;
+        }
+
+        self.logger.info(name, 'has', childrenPaths.length, 'children', 'isMeta:', isMeta, 'MetaType:', metaType);
+        self.treeNodeInfo.push('name:',name)
+        self.treeNodeInfo.push( 'isMeta:', isMeta);
+        self.treeNodeInfo.push('MetaType:', metaType);
+        for (var i = 0; i < childrenPaths.length; i += 1) {
+            var path = childrenPaths[i];
+            self.logger.info('has path:', path);
+            self.treeNodeInfo.push('has path:', path);
+            childNode = nodes[path];
+            self.printTreeNodes(childNode, nodes);
+        }
 
     };
+
 
     return MiniProject2;
 });
