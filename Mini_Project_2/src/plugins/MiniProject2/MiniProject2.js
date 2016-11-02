@@ -71,38 +71,25 @@ define([
         self.metaNodeInfo = {
             "metaNodes": []
         };
-        self.treeNodeInfo = [];
+        self.treeNodeInfo = {};
         self.loadNodeMap(self.rootNode)
         // >> Meta Nodes
             .then(function (nodes) {
                 //print heirarchy here
                 self.printMetaNodes(nodes);
-                var metaNodeInfoJson = JSON.stringify(self.metaNodeInfo, null, 0);
-                return artifact.addFile('meta.json', metaNodeInfoJson);
-            })
-            .then(function (fileHash) {
-                self.result.addArtifact(fileHash);
-                return artifact.save()
-            })
-            .then(function (artifactHash) {
-                self.result.addArtifact(artifactHash);
-            })   //tree  >>
-        self.loadNodeMap(self.rootNode)
-            .then(function (nodes) {
+                var metaNodeInfoJson = JSON.stringify(self.metaNodeInfo, null, 2);
                 //print hierarchy here
-                self.printTreeNodes(self.rootNode, nodes);
-                var treeNodeInfoJson = JSON.stringify(self.treeNodeInfo, null, 0);
-                //artifacts
-                return artifact.addFile('tree.json', treeNodeInfoJson);
+                var treeData = self.printTreeNodes(self.rootNode, nodes);
+                var treeNodeInfoJson = JSON.stringify(treeData, null, 2);
+                console.log(treeNodeInfoJson);
+                return artifact.addFiles({'meta.json': metaNodeInfoJson,'tree.json':treeNodeInfoJson});
             })
-            .then(function (fileHash) {
-                self.result.addArtifact(fileHash);
+            .then(function (fileHashs) {
+                //self.result.addArtifact(fileHashs);
                 return artifact.save()
             })
             .then(function (artifactHash) {
                 self.result.addArtifact(artifactHash);
-            })
-            .then(function () {
                 self.result.setSuccess(true);
                 callback(null, self.result);
             })
@@ -133,121 +120,83 @@ define([
             path,
             name,
             node,
-            meta,
-            base,
+            isMeta,
             numCh;
 
         for (path in nodes) {
-            meta = false;
+            isMeta = false;
             //get node by path
             node = nodes[path];
             //get node by name
             name = self.core.getAttribute(node, 'name')
             numCh = self.core.getChildrenPaths(node).length;
-            var meta;
-            if (path === '') {
-                meta = null;
-                meta = true;
-            }
-            if (self.isMetaTypeOf(node, self.META['FCO']) && name === 'FCO') {
-                meta = true;
-                base = 'FCO';
-            }
-            if (self.isMetaTypeOf(node, self.META['Base']) && name === 'Base') {
-                meta = true;
-                base = 'Base';
-            }
-            if (self.isMetaTypeOf(node, self.META['StateBase']) && name === 'StateBase') {
-                meta = true;
-                base = 'Base';
-            }
-            if (self.isMetaTypeOf(node, self.META['State']) && name === 'State') {
-                meta = true;
-                base = 'StateBase';
-            }
-            if (self.isMetaTypeOf(node, self.META['Initial']) && name === 'Initial') {
-                meta = true;
-                base = 'StateBase';
-            }
-            if (self.isMetaTypeOf(node, self.META['End']) && name === 'End') {
-                meta = true;
-                base = 'StateBase';
-            }
-            if (self.isMetaTypeOf(node, self.META['Transition']) && name === 'Transiion') {
-                meta = true;
-                base = 'Transition';
+            
+            //getting the base name
+            var baseNode = self.core.getBase(node),
+                baseName = baseNode ? self.core.getAttribute(baseNode, 'name') : 'null';
+
+            //self.logger.info('Name:', name, ' has path:', path, 'isMetaNode:', isMeta,'base:', base ,'has', numCh, 'children');
+
+            var meta = self.core.getBaseType(node);
+            if(node === meta){
+                isMeta = true;
             }
 
-            if (meta) {
-                //self.logger.info('Name:', name, ' has path:', path, 'isMetaNode:', meta,'base:', base ,'has', numCh, 'children');
-                self.metaNodeInfo.metaNodes.push({'Name:': name, ' has path': path, 'base': base, 'children': numCh});
+            if (isMeta) {
+                //console.log('Name:', name, 'path:', path, 'isMetaNode:', isMeta ,'base:', baseName ,'has', numCh, 'children');
+                self.metaNodeInfo.metaNodes.push({'Name:': name, 'path': path, 'base': baseName, 'children': numCh});
             }
         }
     };
 
-    MiniProject2.prototype.printTreeNodes = function (root, nodes) {
+    MiniProject2.prototype.printTreeNodes = function (root, nodes, parentData) {
         var self = this,
+            nodeData = {},
             childrenPaths,
             childNode;
 
         var name,
             isMeta = false,
+            relid = self.core.getRelid(root),
             metaType;
 
         childrenPaths = self.core.getChildrenPaths(root);
         name = self.core.getAttribute(root, 'name');
-        if (self.core.getPath(root) === '') {
-            metaType = null;
+
+        //getting the base name
+        var baseNode = self.core.getBase(root),
+            baseName = baseNode ? self.core.getAttribute(baseNode, 'name') : 'null';
+
+       // self.logger.info(name, 'has', childrenPaths.length, 'children', 'isMeta:', isMeta, 'MetaType:', metaType);
+
+        //self.treeNodeInfo.push('name:',name)
+        //self.treeNodeInfo.push( 'isMeta:', isMeta);
+        //self.treeNodeInfo.push('MetaType:', metaType);
+
+
+        var meta = self.core.getBaseType(root);
+        if(root === meta){
             isMeta = true;
         }
-        if (self.isMetaTypeOf(root, self.META['FCO'])) {
-            metaType = 'FCO';
-            if (name === 'FCO')
-                isMeta = true;
-        }
-        if (self.isMetaTypeOf(root, self.META['Base'])) {
-            metaType = 'Base';
-            if (name === 'Base')
-                isMeta = true;
-        }
-        if (self.isMetaTypeOf(root, self.META['StateBase'])) {
-            metaType = 'StateBase';
-            if (name === 'StateBase')
-                isMeta = true;
-        }
-        if (self.isMetaTypeOf(root, self.META['State'])) {
-            metaType = 'State';
-            if (name === 'State')
-                isMeta = true;
-        }
-        if (self.isMetaTypeOf(root, self.META['Initial'])) {
-            metaType = 'StateBase';
-            if (name === 'Initial')
-                isMeta = true;
-        }
-        if (self.isMetaTypeOf(root, self.META['End'])) {
-            metaType = 'StateBase';
-            if (name === 'End')
-                isMeta = true;
-        }
-        if (self.isMetaTypeOf(root, self.META['Transition'])) {
-            metaType = 'StateBase';
-            if (name === 'Transition')
-                isMeta = true;
+
+        nodeData.name = name;
+        nodeData.isMeta = isMeta;
+        nodeData.base = baseName;
+        nodeData.children = {};
+
+        if (parentData) {
+            parentData.children[relid] = nodeData;
         }
 
-        self.logger.info(name, 'has', childrenPaths.length, 'children', 'isMeta:', isMeta, 'MetaType:', metaType);
-        self.treeNodeInfo.push('name:',name)
-        self.treeNodeInfo.push( 'isMeta:', isMeta);
-        self.treeNodeInfo.push('MetaType:', metaType);
         for (var i = 0; i < childrenPaths.length; i += 1) {
             var path = childrenPaths[i];
-            self.logger.info('has path:', path);
-            self.treeNodeInfo.push('has path:', path);
+            //self.logger.info('has path:', path);
+            //self.treeNodeInfo.push('has path:', path);
             childNode = nodes[path];
-            self.printTreeNodes(childNode, nodes);
+            self.printTreeNodes(childNode, nodes, nodeData);
         }
 
+        return nodeData;
     };
 
 
